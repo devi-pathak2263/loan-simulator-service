@@ -80,3 +80,62 @@ def calculate_declining(principal: float, annual_rate: float, months: int):
         "total_payment": float(principal + total_interest),
         "schedule": schedule
     }
+
+# -----------------------------
+# Calculate Flat
+# -----------------------------
+
+def calculate_flat(principal, annual_rate, months):
+
+    years = Decimal(months) / Decimal("12")
+
+    total_interest = principal * (annual_rate / Decimal("100")) * years
+    total_interest = total_interest.quantize(Decimal("0.01"))
+
+    total_payment = (principal + total_interest).quantize(Decimal("0.01"))
+
+    emi = (total_payment / Decimal(months)).quantize(Decimal("0.01"))
+
+    schedule = generate_flat_schedule(principal, annual_rate, months)
+
+    return {
+        "method": "flat",
+        "emi": float(emi),
+        "total_interest": float(total_interest),
+        "total_payment": float(total_payment),
+        "schedule": schedule
+    }
+
+
+# -----------------------------
+# Generate Flat Amortization Schedule
+# -----------------------------
+
+def generate_flat_schedule(principal, annual_rate, months):
+    schedule = []
+
+    years = Decimal(months) / Decimal("12")
+    total_interest = principal * (annual_rate / Decimal("100")) * years
+    monthly_interest = (total_interest / Decimal(months)).quantize(Decimal("0.01"))
+    monthly_principal = (principal / Decimal(months)).quantize(Decimal("0.01"))
+
+    remaining_balance = principal
+
+    for month in range(1, months + 1):
+
+        if month == months:
+            monthly_principal = remaining_balance.quantize(Decimal("0.01"))
+
+        emi = (monthly_principal + monthly_interest).quantize(Decimal("0.01"))
+
+        remaining_balance = (remaining_balance - monthly_principal).quantize(Decimal("0.01"))
+
+        schedule.append({
+            "month": month,
+            "emi": float(emi),
+            "interest": float(monthly_interest),
+            "principal": float(monthly_principal),
+            "balance": float(remaining_balance)
+        })
+
+    return schedule
