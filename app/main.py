@@ -8,11 +8,25 @@ from loan_amortization_engine.engine import (
 )
 app = FastAPI(title="Loan Amortization Simulator")
 
+
+# ---------------------
+# Request Models
+# ---------------------
+
 class LoanRequest(BaseModel):
     principal: float
     annual_rate: float
     months: int
     method: str = "declining"
+
+class CompareRequest(BaseModel):
+    principal: float
+    annual_rate: float
+    months: int
+
+# ---------------------
+# Endpoints
+# ---------------------
 
 @app.post("/simulate")
 def simulate_loan(data: LoanRequest):
@@ -39,3 +53,40 @@ def simulate_loan(data: LoanRequest):
             status_code=400,
             detail="Invalid method. Supported methods: declining, flat"
         )
+
+
+@app.post("/compare")
+def compare_loan(data: CompareRequest):
+
+    principal = Decimal(str(data.principal))
+    annual_rate = Decimal(str(data.annual_rate))
+    months = data.months
+
+    declining_result = calculate_declining(
+        principal,
+        annual_rate,
+        months
+    )
+
+    flat_result = calculate_flat(
+        principal,
+        annual_rate,
+        months
+    )
+
+    difference = round(
+        abs(flat_result["total_interest"] - declining_result["total_interest"]), 2
+    )
+
+    better_option = (
+        "declining"
+        if declining_result["total_interest"] < flat_result["total_interest"]
+        else "flat"
+    )
+
+    return {
+        "declining": declining_result,
+        "flat": flat_result,
+        "difference_in_interest": difference,
+        "better_option": better_option
+    }
