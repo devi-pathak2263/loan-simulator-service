@@ -148,6 +148,16 @@ def what_if_simulation(data: WhatIfRequest):
     annual_rate = Decimal(str(data.annual_rate))
     months = data.months
 
+    #validation
+    if data.principal <= 0:
+        raise HTTPException(status_code=400, detail="Principal must be positive")
+
+    if data.months <= 0:
+        raise HTTPException(status_code=400, detail="Months must be greater than zero")
+
+    if data.annual_rate < 0:
+        raise HTTPException(status_code=400, detail="Interest rate cannot be negative")
+    
     # Current loan
     current = calculate_declining(principal, annual_rate, months)
 
@@ -198,6 +208,7 @@ def what_if_simulation(data: WhatIfRequest):
     new_result = {
         "emi": float(emi),
         "total_interest": float(total_interest),
+        "months_taken": len(schedule),
         "schedule": schedule
     }
 
@@ -206,5 +217,9 @@ def what_if_simulation(data: WhatIfRequest):
     return {
         "current_loan": current,
         "what_if_scenario": new_result,
+        "scenario": {
+        "new_rate": data.new_rate,
+        "extra_payment_monthly": data.extra_payment_monthly
+        },
         "interest_saved": round(savings, 2)
     }
