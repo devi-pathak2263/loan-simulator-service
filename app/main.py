@@ -4,7 +4,8 @@ from fastapi import HTTPException
 from decimal import Decimal
 from loan_amortization_engine.engine import (
     calculate_declining,
-    calculate_flat
+    calculate_flat,
+    simulate_declining_prepayment
 )
 app = FastAPI(title="Loan Amortization Simulator")
 
@@ -23,6 +24,13 @@ class CompareRequest(BaseModel):
     principal: float
     annual_rate: float
     months: int
+
+class PrepaymentRequest(BaseModel):
+    principal: float
+    annual_rate: float
+    months: int
+    prepayment_month: int
+    extra_payment: float
 
 # ---------------------
 # Endpoints
@@ -90,3 +98,27 @@ def compare_loan(data: CompareRequest):
         "difference_in_interest": difference,
         "better_option": better_option
     }
+
+
+@app.post("/simulate-prepayment")
+def simulate_prepayment(data: PrepaymentRequest):
+
+    if data.prepayment_month > data.months:
+        raise HTTPException(
+            status_code=400,
+            detail="Prepayment month cannot exceed loan tenure"
+        ) 
+    
+    if data.prepayment_month < 1:
+        raise HTTPException(
+        status_code=400,
+        detail="Prepayment month must be at least 1"
+    )
+    
+    return simulate_declining_prepayment(
+        data.principal,
+        data.annual_rate,
+        data.months,
+        data.prepayment_month,
+        data.extra_payment
+    )

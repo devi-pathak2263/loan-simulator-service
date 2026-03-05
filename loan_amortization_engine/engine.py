@@ -139,3 +139,84 @@ def generate_flat_schedule(principal, annual_rate, months):
         })
 
     return schedule
+
+
+# -----------------------------
+# prepayment simulation (Declining)
+# -----------------------------
+
+# calculate_emi()
+#        ↓
+# generate_schedule() → before prepayment
+#        ↓
+# reduce balance
+#        ↓
+# generate_schedule() → after prepayment
+#        ↓
+# merge schedules
+
+
+def simulate_declining_prepayment(
+    principal: float,
+    annual_rate: float,
+    months: int,
+    prepayment_month: int,
+    extra_payment: float
+):
+
+    principal = Decimal(str(principal))
+    annual_rate = Decimal(str(annual_rate))
+    extra_payment = Decimal(str(extra_payment))
+
+    monthly_rate = annual_rate / Decimal("12") / Decimal("100")
+
+    emi = calculate_emi(principal, annual_rate, months)
+    emi = emi.quantize(Decimal("0.01"))
+
+    remaining_balance = principal
+    total_interest = Decimal("0.00")
+
+    schedule = []
+
+    for month in range(1, months + 1):
+
+        interest = (remaining_balance * monthly_rate).quantize(Decimal("0.01"))
+        principal_component = (emi - interest).quantize(Decimal("0.01"))
+
+        payment = emi
+
+        # Apply prepayment
+        if month == prepayment_month:
+            principal_component += extra_payment
+            payment += extra_payment
+
+        # Prevent overpayment
+        if principal_component > remaining_balance:
+            principal_component = remaining_balance
+            payment = principal_component + interest
+
+        remaining_balance = (remaining_balance - principal_component).quantize(Decimal("0.01"))
+
+        total_interest += interest
+
+        schedule.append({
+            "month": month,
+            "emi": float(payment),
+            "interest": float(interest),
+            "principal": float(principal_component),
+            "balance": float(remaining_balance)
+        })
+
+        # Stop if loan closed
+        if remaining_balance <= Decimal("0.00"):
+            break
+
+    return {
+        "method": "declining_with_prepayment",
+        "emi": float(emi),
+        "prepayment_month": prepayment_month,
+        "extra_payment": float(extra_payment),
+        "months_saved": months - len(schedule),
+        "total_interest": float(total_interest),
+        "schedule": schedule
+    }
