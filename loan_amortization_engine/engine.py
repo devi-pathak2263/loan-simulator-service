@@ -161,7 +161,8 @@ def simulate_declining_prepayment(
     annual_rate: float,
     months: int,
     prepayment_month: int,
-    extra_payment: float
+    extra_payment: float,
+    strategy: str = "reduce_tenure"
 ):
 
     principal = Decimal(str(principal))
@@ -187,8 +188,37 @@ def simulate_declining_prepayment(
 
         # Apply prepayment
         if month == prepayment_month:
+
             principal_component += extra_payment
             payment += extra_payment
+
+            # Update remaining balance immediately
+            remaining_balance = (
+                remaining_balance - principal_component
+            ).quantize(Decimal("0.01"))
+
+            # Strategy: Reduce EMI
+            if strategy == "reduce_emi":
+
+                remaining_months = months - month
+
+                if remaining_months > 0:
+                    emi = calculate_emi(
+                        remaining_balance,
+                        annual_rate,
+                        remaining_months
+                    ).quantize(Decimal("0.01"))
+
+            total_interest += interest
+
+            schedule.append({
+                "month": month,
+                "emi": float(payment),
+                "interest": float(interest),
+                "principal": float(principal_component),
+                "balance": float(remaining_balance)
+            })
+            continue
 
         # Prevent overpayment
         if principal_component > remaining_balance:
@@ -213,10 +243,12 @@ def simulate_declining_prepayment(
 
     return {
         "method": "declining_with_prepayment",
+        "strategy": strategy,
         "emi": float(emi),
         "prepayment_month": prepayment_month,
         "extra_payment": float(extra_payment),
         "months_saved": months - len(schedule),
+        "loan_closed_month": len(schedule),
         "total_interest": float(total_interest),
         "schedule": schedule
     }

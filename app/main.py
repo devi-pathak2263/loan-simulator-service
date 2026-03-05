@@ -31,6 +31,7 @@ class PrepaymentRequest(BaseModel):
     months: int
     prepayment_month: int
     extra_payment: float
+    strategy: str = "reduce_tenure"
 
 # ---------------------
 # Endpoints
@@ -103,6 +104,12 @@ def compare_loan(data: CompareRequest):
 @app.post("/simulate-prepayment")
 def simulate_prepayment(data: PrepaymentRequest):
 
+    if data.strategy not in ["reduce_tenure", "reduce_emi"]:
+        raise HTTPException(
+        status_code=400,
+        detail="Strategy must be reduce_tenure or reduce_emi"
+    )
+
     if data.prepayment_month > data.months:
         raise HTTPException(
             status_code=400,
@@ -114,11 +121,12 @@ def simulate_prepayment(data: PrepaymentRequest):
         status_code=400,
         detail="Prepayment month must be at least 1"
     )
-    
+
     return simulate_declining_prepayment(
         data.principal,
         data.annual_rate,
         data.months,
         data.prepayment_month,
-        data.extra_payment
+        data.extra_payment,
+        data.strategy
     )
